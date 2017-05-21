@@ -5,7 +5,7 @@ It will later covers other types with interaction.
  
  The underlying library is `d3.js`.
  
- ##ECG Chart
+ ## ECG Chart
  Compulsory property: `data`. Properties like `range` will be inferred from `data`. 
  The date range will be rounded to the nearest multiple of 200ms. 
  If all other properties are ignored, default values will apply.
@@ -26,6 +26,6 @@ It will later covers other types with interaction.
     legend="Abnormal Point"
   />
 ```
-##TO DO
+## TO DO
 - Provide more options of ECG Charts to user if necessary.
 - Complete other types of charts.
