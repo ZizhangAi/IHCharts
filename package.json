@@ -1,6 +1,6 @@
 {
   "name": "@ihealth/ihcharts",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "devDependencies": {
     "autoprefixer": "6.7.2",
     "babel-cli": "^6.24.1",
@@ -49,6 +49,7 @@
     "react": "^15.5.4",
     "react-dom": "^15.5.4"
   },
+  "main": "lib/index.js",
   "scripts": {
     "start": "node scripts/start.js",
     "build": "node scripts/build.js",
