@@ -2,7 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom';
 import ECGChart from './ECGChart';
 import './index.css';
-
+/*
 ReactDOM.render(
   <ECGChart
     data={[{date: 1494766666017, value: -2.2}, {date: 1494766670017, value: -1.2}, { date: 1494766676017, value: 2.8}]}
@@ -18,7 +18,7 @@ ReactDOM.render(
   />,
   document.getElementById('root')
 );
-
+*/
 module.exports = {
   ECGChart
 };
