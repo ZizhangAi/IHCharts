@@ -26,6 +26,7 @@ It will later covers other types with interaction.
     legend="Abnormal Point"
   />
 ```
+![Example](./public/chart.png)
 ## TO DO
 - Provide more options of ECG Charts to user if necessary.
 - Complete other types of charts.
