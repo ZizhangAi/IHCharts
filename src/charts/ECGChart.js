@@ -166,8 +166,9 @@ function drawECG () {
       .append('text')
       .text(d => d.label)
       .call(attr, {
+        ...DEFAULT_ECG_CORNER_TEXT_ATTR,
         'x': d => x(d.date),
-        'y': '-.8em',
+        'y': '-1.1em',
         'text-anchor': 'middle'
       });
     // </editor-fold>
