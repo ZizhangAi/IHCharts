@@ -194,7 +194,7 @@ function drawECG () {
 
 function findRange (data, range, minExtent = DEFAULT_ECG_MIN_RANGE_EXTENT) {
   const arr = [0, 200, 400, 600, 800, 1000];
-  let [r1, r2] = range? range : d3.extent(data, (d) => d.date);
+  let [r1, r2] = range? range : data.length > 0? d3.extent(data, (d) => d.date) : [+new Date(), + new Date()];
   const minIdx = d3.bisectRight(arr, r1 % 1e3) - 1;
   const maxIdx = d3.bisectLeft(arr, r2 % 1e3);
   r1 = r1 - r1 % 1e3 + arr[minIdx];

@@ -5,13 +5,13 @@ import * as d3 from 'd3';
 export const DEFAULT_ECG_AXIS_ATTR = {
   'stroke'             : 'red',
   'stroke-width'       : '2px',
-  'shape-rendering'    : 'crispEdges',
+  // 'shape-rendering'    : 'crispEdges', // when used in report, the zooming will affect rendering.
   'opacity'            : 0.3
 };
 export const DEFAULT_ECG_GRID_ATTR = {
   'stroke'             : 'red',
   'stroke-width'       : '1px',
-  'shape-rendering'    : 'crispEdges',
+  // 'shape-rendering'    : 'crispEdges', // when used in report, the zooming will affect rendering.
   'opacity'            : 0.1
 };
 export const DEFAULT_ECG_LINE_ATTR = {

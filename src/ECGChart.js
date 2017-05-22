@@ -8,6 +8,11 @@ class ECGChart extends Component {
     d3.select(this._container)
       .call(ECGChart);
   }
+  componentDidUpdate() {
+    d3.select(this._container).selectAll('*').remove();
+    d3.select(this._container)
+      .call(ECGChart);
+  }
   render() {
     return (
       <div ref={node => {
