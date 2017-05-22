@@ -71,7 +71,7 @@ function drawECG () {
       upperLeftLabel, upperRightLabel, lowerLeftLabel, lowerRightLabel, legend } = props;
     range         = findRange(data, range);
     width         = width - margin.left - margin.right;
-    yDomain       = yDomain.reverse();
+    yDomain       = yDomain.slice().reverse(); // if no .slice(), you might be mutating the default range!
     const grid    = width / ((range[1] - range[0])/200); // default is 200ms per grid
     height        = height? (height - margin.top - margin.bottom) : grid * 10;
     data          = data.filter(d => d.date >= range[0] && d.date <= range[1]);
