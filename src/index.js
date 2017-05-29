@@ -1,6 +1,8 @@
-// import React from 'react';
-// import ReactDOM from 'react-dom';
+import React from 'react';
+import ReactDOM from 'react-dom';
 import ECGChart from './ECGChart';
+import LineChart from './LineChart';
+import App from "./App";
 /*
 ReactDOM.render(
   <ECGChart
@@ -18,6 +20,10 @@ ReactDOM.render(
   document.getElementById('root')
 );
 */
+
+ReactDOM.render(<App/>,
+  document.getElementById('root'));
+
 module.exports         = {
   ECGChart
 };

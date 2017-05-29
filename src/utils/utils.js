@@ -45,7 +45,7 @@ export function drawLegend (svg, legendData, height, width, spaceInBetween = 50)
   const translateX = [];
   widths.reduce((acc, d) => {
     translateX.push(acc);
-return acc + d + spaceInBetween;
+    return acc + d + spaceInBetween;
   }, 0);
   const offset = (width - d3.sum(widths) -
     spaceInBetween * (legends.size() - 1)) / 2;
