@@ -40,7 +40,7 @@ function drawLine() {
   var updateWidth, updateData;
   var x, y, xAxis, yAxis, svg;
   var line = d3.line();
-  var lines, dots;
+  var main;
 
   // <editor-fold desc="Define methods for drawLine">
   Object.keys(props).forEach(key => {
@@ -97,23 +97,19 @@ function drawLine() {
       .attr('class', 'axis axis--y')
       .call(yAxis);
 
-    lines = svg
+    main = svg
       .append('g')
-      .attr('class', 'lines');
-    dots = svg
-      .append('g')
-      .attr('class', 'dots');
+      .attr('class', 'main');
     // </editor-fold >
     // <editor-fold desc="Update Data">
     updateData = function (newData) {
       let {yDomain, xAccessor, yAccessor, range, colors, width} = props;
       range = findRange(newData, xAccessor, range);
+      console.log(range);
       yAccessor = yAccessor.constructor === Array? yAccessor : [yAccessor];
       yDomain = findYExtent(newData, yAccessor);
       x.domain(range).nice();
       y.domain(yDomain).nice();
-      // xAxis = d3.axisBottom(x);
-      // yAxis = d3.axisLeft(y);
       const t = d3
         .transition('hello')
         .duration(1000)
@@ -130,16 +126,7 @@ function drawLine() {
             .attr('pointer-events', null);
         });
 
-/*      const t2 = d3
-        .transition('hey')
-        .on('start', function() {
-          d3.select(this)
-            .attr('pointer-events', 'none');
-        })
-        .on('end', function() {
-          d3.select(this)
-            .attr('pointer-events', null)
-        })*/
+
       svg.select('.axis.axis--x')
         .transition(t)
         .call(xAxis);
@@ -147,77 +134,90 @@ function drawLine() {
         .transition(t)
         .call(yAxis);
 
-      const currLines = lines
-        .selectAll('path')
-        .data(yAccessor, d => d);
+      const mainGroups = main
+        .selectAll('g.line-dots')
+        .data(yAccessor);
+
       // UPDATE
       // ENTER + UPDATE
-      currLines
-        .enter().append('path')
-        .merge(currLines)
-        // .attr('d', (d) => line.x(f => x(f[xAccessor])).y(f => 0)(newData))
+      const allGroups = mainGroups
+        .enter().append('g')
+        .merge(mainGroups)
+        .attr('class', d => d + ' line-dots');
+      // EXIT
+      mainGroups.exit().remove();
+
+      const lineDots = allGroups
+        .selectAll('g')
+        .data(['line', 'dots']);
+
+      const allLineDots = lineDots.enter().append('g')
+        .merge(lineDots)
+        .attr('class', d => d);
+
+      lineDots.exit().remove();
+
+      const a = allLineDots.filter(function() { return d3.select(this).classed('line') });
+      const lines = a
+        .selectAll('path')
+        .data([newData]);
+
+      lines.enter().append('path')
+        .merge(lines)
         .transition(t)
-        .attr('d', (d) => {
-          return line.x(f => x(f[xAccessor])).y(f => y(f[d]))(newData);
+        .attr('d', function(d, i) {
+          const group = d3.select(this.parentNode.parentNode).datum()
+          return line.x(s => x(s[xAccessor])).y(s => y(s[group]))(newData)
         })
-        .attr('stroke', (d, i) => colors[i])
+        .attr('stroke', function (d, i) {
+          const group = d3.select(this.parentNode.parentNode).datum()
+          return colors[yAccessor.indexOf(group)]
+        })
         .attr('stroke-width', '2px')
         .attr('fill', 'none');
-      // EXIT
-      currLines.exit().remove();
 
-      // dot groups
-      let dataPoints = dots
-        .selectAll('g')
-        .data(newData, d => d[xAccessor]);
 
-      // UPDATE
-      // ENTER + UPDATE
-      dataPoints
-        .enter().append('g')
-        .merge(dataPoints)
-        .on('mouseover', function(d, i) {
-          d3.select(this)
-            .selectAll('circle')
+      const b = allLineDots.filter(function() { return d3.select(this).classed('dots')});
+      const dots = b
+        .selectAll('circle')
+        .data(newData);
+
+      newData.forEach(function(d, i) { d.nodes = []; });
+      dots.enter().append('circle')
+        .merge(dots)
+        .attr('class', 'dot')
+        .each(function(d) {
+          d.nodes.push(this);
+        })
+        .transition(t)
+        .attr('r', 3)
+        .attr('cx', (d, i) => x(d[xAccessor]))
+        .attr('cy', function(d) {
+          const group = d3.select(this.parentNode.parentNode).datum();
+          return y(d[group]);
+        })
+        .attr('fill', 'white')
+        .attr('stroke', function(d) {
+          const group = d3.select(this.parentNode.parentNode).datum();
+          return colors[yAccessor.indexOf(group)];
+        })
+        .attr('stroke-width', '2px');
+
+      dots.exit().remove();
+      svg
+        .selectAll('circle.dot')
+        .on('mouseover', function(d){
+          d3.select(this.parentNode.parentNode).raise();
+          d3.selectAll(d.nodes)
+            .raise()
             .transition()
             .attr('r', 6);
-          // show tooltip;
         })
-        .on('mouseout', function(d, i) {
-          d3.select(this)
-            .selectAll('circle')
+        .on('mouseout', function(d) {
+          d3.selectAll(d.nodes)
             .transition()
             .attr('r', 3);
-          // hide tooltip;
-        });
-      dataPoints.exit().remove();
-
-      // circles under data groups
-      const circles = dots.selectAll('g')
-        .selectAll('circle')
-        .data(yAccessor, d => d);
-
-      circles
-        .enter().append('circle')
-        .merge(circles)
-        // .attr('cy', 0)
-
-        .transition(t)
-        .attr('cx', function() {
-          // access parent node!
-          const pDatum = d3.select(this.parentNode).datum();
-          return x(pDatum[xAccessor]);
         })
-        .attr('cy', function(d) {
-          const pDatum = d3.select(this.parentNode).datum();
-          return y(pDatum[d]);
-        })
-        .attr('r', 3)
-        .attr('stroke', (d, i) => colors[i])
-        .attr('stroke-width', '2px')
-        .attr('fill', 'white');
-      circles.exit().remove();
-
 
     }
     // </editor-fold>
@@ -229,7 +229,6 @@ function drawLine() {
 
 function findRange(data, xAccessor, range, minExtent = DEFAULT_MIN_EXTENT) {
   if (range && range.length > 0) {
-    console.log('hey')
     return range;
   }
   if (data.length === 0) {
@@ -238,7 +237,7 @@ function findRange(data, xAccessor, range, minExtent = DEFAULT_MIN_EXTENT) {
   }
   const extent = d3.extent(data, d => d[xAccessor]);
   if (extent[0] === extent[1]) {
-    return [extent, extent + minExtent];
+    return [extent[0], extent[0] + minExtent];
   }
   return extent;
 }
