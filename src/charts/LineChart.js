@@ -115,10 +115,9 @@ function drawLine() {
       // xAxis = d3.axisBottom(x);
       // yAxis = d3.axisLeft(y);
       const t = d3
-        .transition()
+        .transition('hello')
         .duration(1000)
         .on('start', function() {
-          console.log(svg.selectAll('g.dots').selectAll('g').size())
           svg
             .selectAll('g.dots')
             .selectAll('g')
@@ -128,10 +127,25 @@ function drawLine() {
           svg
             .selectAll('g.dots')
             .selectAll('g')
-            .attr('pointer-events', '');
+            .attr('pointer-events', null);
         });
-      svg.select('.axis.axis--x').transition(t).call(xAxis);
-      svg.select('.axis.axis--y').transition(t).call(yAxis);
+
+/*      const t2 = d3
+        .transition('hey')
+        .on('start', function() {
+          d3.select(this)
+            .attr('pointer-events', 'none');
+        })
+        .on('end', function() {
+          d3.select(this)
+            .attr('pointer-events', null)
+        })*/
+      svg.select('.axis.axis--x')
+        .transition(t)
+        .call(xAxis);
+      svg.select('.axis.axis--y')
+        .transition(t)
+        .call(yAxis);
 
       const currLines = lines
         .selectAll('path')
@@ -163,7 +177,6 @@ function drawLine() {
         .enter().append('g')
         .merge(dataPoints)
         .on('mouseover', function(d, i) {
-          console.log(window.event)
           d3.select(this)
             .selectAll('circle')
             .transition()

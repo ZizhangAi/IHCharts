@@ -13,8 +13,8 @@ class LineChart extends Component {
     // d3.select(this._container).selectAll('*').remove();
     // d3.select(this._container)
     //   .call(lineChart);
-    console.log('updated')
-    console.log(typeof this.lineChart.data)
+    // console.log('updated')
+    // console.log(typeof this.lineChart.data)
     this.lineChart.data(this.props.data);
   }
   render() {
