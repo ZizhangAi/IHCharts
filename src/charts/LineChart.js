@@ -103,32 +103,33 @@ function drawLine() {
     // </editor-fold >
     // <editor-fold desc="Update Data">
     updateData = function (newData) {
-      let {yDomain, xAccessor, yAccessor, range, colors, width} = props;
+      let {yDomain, xAccessor, yAccessor, range, colors, height, margin} = props;
       range = findRange(newData, xAccessor, range);
-      console.log(range);
       yAccessor = yAccessor.constructor === Array? yAccessor : [yAccessor];
       yDomain = findYExtent(newData, yAccessor);
       x.domain(range).nice();
-      y.domain(yDomain).nice();
+      y.domain(yDomain).nice().range([height, 0]);
       const t = d3
         .transition('hello')
         .duration(1000)
         .on('start', function() {
+          // this problem doesn't seem to occur any more.
           svg
-            .selectAll('g.dots')
-            .selectAll('g')
+            .selectAll('circle.dot')
             .attr('pointer-events', 'none');
         })
         .on('end', function() {
           svg
-            .selectAll('g.dots')
-            .selectAll('g')
+            .selectAll('circle.dot')
             .attr('pointer-events', null);
         });
-
+      d3.select(svg.node().parentNode)
+        .transition(t)
+        .attr('height', height + margin.top + margin.bottom);
 
       svg.select('.axis.axis--x')
         .transition(t)
+        .attr('transform', `translate(0, ${props.height})`)
         .call(xAxis);
       svg.select('.axis.axis--y')
         .transition(t)

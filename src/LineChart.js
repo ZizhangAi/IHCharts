@@ -15,7 +15,9 @@ class LineChart extends Component {
     //   .call(lineChart);
     // console.log('updated')
     // console.log(typeof this.lineChart.data)
-    this.lineChart.data(this.props.data);
+    const { xAccessor, yAccessor, height, colors, data} = this.props;
+    this.lineChart.xAccessor(xAccessor).yAccessor(yAccessor).height(height)
+      .colors(colors).data(data);
   }
   render() {
     return (
