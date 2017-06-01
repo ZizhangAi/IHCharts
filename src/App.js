@@ -22,7 +22,8 @@ export default class App extends Component {
         xAccessor: 'time',
         yAccessor: ['dbp', 'sbp'],
         colors: ['green', 'grey'],
-        height: 500
+        height: 500,
+        width: 600
       }), 3000);
   }
   render() {

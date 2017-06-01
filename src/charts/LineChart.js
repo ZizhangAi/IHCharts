@@ -103,11 +103,11 @@ function drawLine() {
     // </editor-fold >
     // <editor-fold desc="Update Data">
     updateData = function (newData) {
-      let {yDomain, xAccessor, yAccessor, range, colors, height, margin} = props;
+      let {yDomain, xAccessor, yAccessor, range, colors, height, margin, width } = props;
       range = findRange(newData, xAccessor, range);
       yAccessor = yAccessor.constructor === Array? yAccessor : [yAccessor];
       yDomain = findYExtent(newData, yAccessor);
-      x.domain(range).nice();
+      x.domain(range).nice().range([0, props.width]);
       y.domain(yDomain).nice().range([height, 0]);
       const t = d3
         .transition('hello')
@@ -125,7 +125,8 @@ function drawLine() {
         });
       d3.select(svg.node().parentNode)
         .transition(t)
-        .attr('height', height + margin.top + margin.bottom);
+        .attr('height', height + margin.top + margin.bottom)
+        .attr('width', width + margin.left + margin.right);
 
       svg.select('.axis.axis--x')
         .transition(t)
@@ -144,7 +145,7 @@ function drawLine() {
       const allGroups = mainGroups
         .enter().append('g')
         .merge(mainGroups)
-        .attr('class', d => d + ' line-dots');
+        .attr('class', d => d + ' line-dots')
       // EXIT
       mainGroups.exit().remove();
 
