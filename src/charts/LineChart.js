@@ -40,7 +40,7 @@ function drawLine() {
   var updateWidth, updateData;
   var x, y, xAxis, yAxis, svg;
   var line = d3.line();
-  var main;
+  var main, tooltip;
 
   // <editor-fold desc="Define methods for drawLine">
   Object.keys(props).forEach(key => {
@@ -96,11 +96,39 @@ function drawLine() {
       .append('g')
       .attr('class', 'axis axis--y')
       .call(yAxis);
+    // </editor-fold >
 
+    // <editor-fold desc="Draw Tooltip">
+    tooltip = svg
+      .append('g')
+      .attr('class', 'tooltip')
+      .attr('display', 'none');
+    tooltip.append('path')
+      .attr('fill', 'none')
+      .attr('stroke', 'black');
+    tooltip.append('rect')
+      .attr('x', 3)
+      .attr('y', -16)
+      .attr('height', 16);
+    tooltip.append('text')
+      .attr('class', 'indicator')
+      // .style('fill', 'white')
+      .attr('x', 3*2)
+      .attr('dy', '-.35em');
+    tooltip.append('text')
+      .attr('class', 'time')
+      .attr('dy', '-.35em');
+    tooltip.append('line')
+      .attr('stroke', 'black')
+      .attr('stroke-width', '2px')
+      .attr('stroke-dasharray', '2 2');
+    // </editor-fold>
+
+    // <editor-fold desc="Draw Line Series">
     main = svg
       .append('g')
       .attr('class', 'main');
-    // </editor-fold >
+    // </editor-fold>
     // <editor-fold desc="Update Data">
     updateData = function (newData) {
       let {yDomain, xAccessor, yAccessor, range, colors, height, margin, width } = props;
@@ -136,6 +164,45 @@ function drawLine() {
         .transition(t)
         .call(yAxis);
 
+      // <editor-fold desc="draw tooltip">
+      function setTooltip(d) {
+        const t1 = JSON.stringify(d);
+        const t2 = `${d3.timeFormat('%I:%M %p, %-d/%b')(d[xAccessor])}`
+        tooltip.select('text.indicator').text(t1)
+        tooltip.select('text.time').text(t2)
+        const t1Length = tooltip.select('text.indicator').node().getComputedTextLength();
+        const t2Length = tooltip.select('text.time').node().getComputedTextLength();
+        tooltip.select('text.indicator').style('fill', () => (d.datum && d.datum.taskStatus === 'MISSED')? '#363b4e': 'white')
+        tooltip.select('rect').attr('width', t1Length + 3 * 2)
+          .style('fill', () => 'red');
+        tooltip.select('text.time').attr('x', t1Length + 3 * 4);
+        const l1 = (t1Length + t2Length - 10 + 3*3)/2
+        tooltip.select('path').attr('d', drawPath(3, 16, l1, l1, 5, 10));
+        tooltip.select('line')
+          .attr('x1', l1 + 5 + 3)
+          .attr('x2', l1 + 5 + 3)
+          .attr('y1', height + 3 + 10)
+          .attr('y2', 3 + 10);
+
+
+        tooltip.transition().duration(100)
+          .attr('transform', `translate(${x(d[xAccessor]) - (l1 + 5 + 3)}, ${-3 - 10})`);
+
+      };
+      function drawPath(r, h, l1, l2, x, y) {
+        const arc = `a${r}, ${r} 0 0, 0`;
+        return `M0, 0
+          ${arc} ${r}, ${r} l${l1}, 0 l${x}, ${y} l${x}, -${y}
+          l${l2} 0
+          ${arc} ${r} -${r}
+          l0 -${h}
+          ${arc} -${r} -${r}
+          l-${l1 + l2 + x + x}, 0
+          ${arc} -${r} ${r}
+          z`;
+      }
+      // </editor-fold>
+      // <editor-fold desc="draw line series">
       const mainGroups = main
         .selectAll('g.line-dots')
         .data(yAccessor);
@@ -209,6 +276,9 @@ function drawLine() {
       svg
         .selectAll('circle.dot')
         .on('mouseover', function(d){
+          tooltip.attr('display', null);
+          const { nodes, ...rest } = d;
+          setTooltip(rest);
           d3.select(this.parentNode.parentNode).raise();
           d3.selectAll(d.nodes)
             .raise()
@@ -216,11 +286,12 @@ function drawLine() {
             .attr('r', 6);
         })
         .on('mouseout', function(d) {
+          tooltip.attr('display', 'none');
           d3.selectAll(d.nodes)
             .transition()
             .attr('r', 3);
         })
-
+      // </editor-fold >
     }
     // </editor-fold>
     updateData(props.data);
