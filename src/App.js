@@ -19,6 +19,8 @@ export default class App extends Component {
           {time: 1495956010693, dbp: 78, sbp: 110},
           {time: 1495956210000, dbp: 20, sbp: 104},
           {time: 1495956480693, dbp: 99, sbp: 122}],
+        xTicks: [1495955500693, 1495956210000, 1495956480693],
+        yTicks: [0, 10, 130],
         xAccessor: 'time',
         yAccessor: ['dbp', 'sbp'],
         colors: ['green', 'grey'],

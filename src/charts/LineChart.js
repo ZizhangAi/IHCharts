@@ -14,7 +14,9 @@ const constants = {
   yDomain      : [0, 1],
   xAccessor    : 'date',
   yAccessor    : null, // either string or array
-  range        : null
+  range        : null,
+  xTicks       : [],
+  yTicks       : []
 };
 
 export default function generateChart (props) {
@@ -77,6 +79,7 @@ function drawLine() {
     y = d3.scaleLinear()
       .domain(props.yDomain)
       .range([props.height, 0]);
+
     xAxis = d3.axisBottom(x);
     yAxis = d3.axisLeft(y);
     svg = selection
@@ -131,12 +134,10 @@ function drawLine() {
     // </editor-fold>
     // <editor-fold desc="Update Data">
     updateData = function (newData) {
-      let {yDomain, xAccessor, yAccessor, range, colors, height, margin, width } = props;
-      range = findRange(newData, xAccessor, range);
+      let {yDomain, xAccessor, yAccessor, range, colors, height, margin, width, xTicks, yTicks } = props;
+      range = findRange(newData, xAccessor, xTicks, range);
       yAccessor = yAccessor.constructor === Array? yAccessor : [yAccessor];
-      yDomain = findYExtent(newData, yAccessor);
-      x.domain(range).nice().range([0, props.width]);
-      y.domain(yDomain).nice().range([height, 0]);
+      yDomain = findYExtent(newData, yAccessor, yTicks);
       const t = d3
         .transition('hello')
         .duration(1000)
@@ -152,17 +153,30 @@ function drawLine() {
             .attr('pointer-events', null);
         });
       d3.select(svg.node().parentNode)
-        .transition(t)
+        // .transition(t)
         .attr('height', height + margin.top + margin.bottom)
         .attr('width', width + margin.left + margin.right);
 
+
+      if (xTicks.length > 0) {
+        x.domain(range).range([0, props.width]);
+        xAxis.tickValues(xTicks.filter(t => t >= range[0] && t <= range[1]));
+      } else {
+        x.domain(range).range([0, props.width]).nice();
+      }
+      if (yTicks.length > 0) {
+        y.domain(yDomain).range([height, 0]);
+        yAxis.tickValues(yTicks);
+      } else {
+        y.domain(yDomain).range([height, 0]).nice();
+      }
       svg.select('.axis.axis--x')
-        .transition(t)
+        // .transition(t)
         .attr('transform', `translate(0, ${props.height})`)
-        .call(xAxis);
+        .call(xAxis.tickSize(-height));
       svg.select('.axis.axis--y')
-        .transition(t)
-        .call(yAxis);
+        // .transition(t)
+        .call(yAxis.tickSize(-width));
 
       // <editor-fold desc="draw tooltip">
       function setTooltip(d) {
@@ -300,7 +314,7 @@ function drawLine() {
   return drawChart;
 }
 
-function findRange(data, xAccessor, range, minExtent = DEFAULT_MIN_EXTENT) {
+function findRange(data, xAccessor, xTicks, range, minExtent = DEFAULT_MIN_EXTENT) {
   if (range && range.length > 0) {
     return range;
   }
@@ -308,20 +322,23 @@ function findRange(data, xAccessor, range, minExtent = DEFAULT_MIN_EXTENT) {
     const now = +new Date();
     return [now, now + DEFAULT_MIN_EXTENT];
   }
-  const extent = d3.extent(data, d => d[xAccessor]);
+  const newDates = data.map(d => d[xAccessor]).concat(xTicks || []);
+  const extent = d3.extent(newDates);
   if (extent[0] === extent[1]) {
     return [extent[0], extent[0] + minExtent];
   }
   return extent;
 }
-function findYExtent(data, yAccessor, defaultDomain = DEFAULT_Y_DOMAIN.slice()) {
+function findYExtent(data, yAccessor, yTicks, defaultDomain = DEFAULT_Y_DOMAIN.slice()) {
   if (data.length === 0) return defaultDomain;
 
   yAccessor = yAccessor.constructor === Array? yAccessor : [yAccessor];
-  const yDomain = yAccessor.reduce((acc, key) => {
+  let yDomain = yAccessor.reduce((acc, key) => {
     const extent = d3.extent(data, d => d[key]);
     return [Math.min(acc[0], extent[0]), Math.max(acc[1], extent[1])];
   }, [Infinity, -Infinity]);
+
+  yDomain = d3.extent(yDomain.concat(yTicks));
   if (yDomain[0] === yDomain[1]) {
     return [yDomain[0] - 1, yDomain[1] + 1];
   }
