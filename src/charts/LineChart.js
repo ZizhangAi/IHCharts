@@ -1,357 +1,388 @@
 /**
  * Created by zizhangai on 5/27/17.
  */
-import deepmerge from 'deepmerge';
-import * as d3 from 'd3';
-const DEFAULT_MIN_EXTENT = 24 * 3600 * 1e3; // milliseconds in one day;
-const DEFAULT_Y_DOMAIN = [0, 1];
-const constants = {
-  height       : null,
-  width        : window.innerWidth,
-  colors       : null,
-  data         : null,
-  margin       : {top: 50, right: 50, bottom: 50, left: 50},
-  yDomain      : [0, 1],
-  xAccessor    : 'date',
-  yAccessor    : null, // either string or array
-  range        : null,
-  xTicks       : [],
-  yTicks       : []
-};
+import * as d3 from "d3";
+import {
+  formatClassName,
+  drawLegend,
+  createToolTip,
+  setTooltip,
+  drawThreshold,
+  attr,
+  drawBaseline,
+  removeAllAttrs,
+  findYExtent,
+  findRange
+} from "../utils/utils";
+import {
+  DEFAULT_LINE_LEGEND_PATH_STYLE,
+  DEFAULT_LINE_LEGEND_TEXT_STYLE,
+  DEFAULT_LINE_MISSED_STYLE,
+  DEFAULT_BASELINE_STYLE,
+  DEFAULT_LINE_SERIES_STYLE,
+  DEFAULT_CIRCLE_STYLE
+} from "../utils/consts";
 
-export default function generateChart (props) {
-  const myProps = deepmerge(constants, props);
-  // should I check if all date is timestamp?
-  myProps.data = myProps.data.map(d => {
-    if (Object.prototype.toString.call(d[props.xAccessor]) === '[object Date]') {
-      d[props.xAccessor] = +d[props.xAccessor];
-    }
-    return d;
-  });
-  // need to sort the data, convert the xAccessor to timestamp;
-  myProps.data = myProps.data.sort((a, b) => a[props.xAccessor] - b[props.xAccessor]);
-  return Object.keys(myProps).reduce((acc, key) => acc[key].call(null, myProps[key]), drawLine());
-}
-
-function drawLine() {
-  var props = Object.keys(constants).reduce((acc, key) => {
-    acc[key] = void 0;
-    return acc;
-  }, {});
-  // define internal variables
-  var updateWidth, updateData;
-  var x, y, xAxis, yAxis, svg;
-  var line = d3.line();
-  var main, tooltip;
-
-  // <editor-fold desc="Define methods for drawLine">
-  Object.keys(props).forEach(key => {
-    drawChart[key] = function (value) {
-      if (!arguments.length) return props[key];
-      props[key] = value;
-      return drawChart;
-    };
-  });
-  drawChart.data = function (value) {
-    if (!arguments.length) return props.data;
-    props.data = value;
-    if (typeof updateData=== 'function') {
-      updateData(value);
-    }
-    return drawChart;
+export class drawNewLine {
+  constructor(props) {
+    this.setProps(props);
+  }
+  setProps = props => {
+    this.height                 = props.height;
+    this.width                  = props.width || window.innerWidth;
+    this.colors                 = props.colors;
+    this.data                   = props.data;
+    this.margin                 = props.margin || { top: 50, right: 50, bottom: 50, left: 50 };
+    this.yDomain                = props.yDomain;
+    this.xAccessor              = props.xAccessor || "date";
+    this.yAccessor              = props.yAccessor; // either string or array;
+    this.range                  = props.range;
+    this.xTicks                 = props.xTicks || [];
+    this.yTicks                 = props.yTicks || [];
+    this.isYFrom0               = props.isYFrom0 !== false;
+    this.xAxisFormator          = props.xAxisFormator;
+    this.legendText             = props.legendText || props.yAccessor;
+    this.threshold              = props.threshold || [];
+    this.missed                 = props.missed;
+    this.baseline               = props.baseline;
+    this.lineStyle              = props.lineStyle || [];
+    this.tooltipTextBg          = props.tooltipTextBg || (() => 'transparent');
+    this.tooltipDateFormator    = props.tooltipDateFormator || '%H:%M %b %d';
+    this.tooltipReadingFormat   = props.tooltipReadingFormat || ((d) => '');
+    this.tooltipReadingTexFill  = props.tooltipReadingTexFill || (() => 'black');
   };
-  drawChart.width = function (value) {
-    if (!arguments.length) return props.width;
-    props.width = value;
-    if (typeof updateWidth === 'function') updateWidth();
-    return drawChart;
-  };
-  // </editor-fold>
-
-  function drawChart(selection) {
-    // let {height, width, data, margin, yDomain, xAccessor, yAccessor, range} = props;
-    // props.range = findRange(props.data, props.xAccessor, props.range);
-    props.width = props.width - props.margin.left - props.margin.right;
-    props.yDomain = findYExtent(props.data, props.yAccessor);
-    x = d3.scaleTime()
-      // .domain(props.range)
-      .range([0, props.width]);
-    y = d3.scaleLinear()
-      .domain(props.yDomain)
-      .range([props.height, 0]);
-
-    xAxis = d3.axisBottom(x);
-    yAxis = d3.axisLeft(y);
-    svg = selection
-      .append('svg')
-      .attr('height', props.height + props.margin.top + props.margin.bottom)
-      .attr('width', props.width + props.margin.left + props.margin.right)
+  drawLine = selection => {
+    this.line = d3.line();
+    this.svg = selection
+      .append("svg")
+      .append("g");
+    // <editor-fold desc="Draw Axis Groups">
+    this.svg.append("g").attr("class", "axis axis--x");
+    this.svg.append("g").attr("class", "axis axis--y");
+    // </editor-fold>
+    // <editor-fold desc="Draw threshold">
+    this.svg.append('g')
+      .attr('class', 'thresholds');
+    // </editor-fold>
+    // <editor-fold desc="Draw Baseline">
+    this.svg
       .append('g')
-      .attr('transform', `translate(${props.margin.left}, ${props.margin.top})`);
-    // <editor-fold desc="Draw Axis">
-    svg
-      .append('g')
-      .attr('class', 'axis axis--x')
-      .attr('transform', `translate(0, ${props.height})`)
-      .call(xAxis);
-
-    svg
-      .append('g')
-      .attr('class', 'axis axis--y')
-      .call(yAxis);
-    // </editor-fold >
-
+      .attr('class', 'baseline');
+    // </editor-fold>
     // <editor-fold desc="Draw Tooltip">
-    tooltip = svg
-      .append('g')
-      .attr('class', 'tooltip')
-      .attr('display', 'none');
-    tooltip.append('path')
-      .attr('fill', 'none')
-      .attr('stroke', 'black');
-    tooltip.append('rect')
-      .attr('x', 3)
-      .attr('y', -16)
-      .attr('height', 16);
-    tooltip.append('text')
-      .attr('class', 'indicator')
-      // .style('fill', 'white')
-      .attr('x', 3*2)
-      .attr('dy', '-.35em');
-    tooltip.append('text')
-      .attr('class', 'time')
-      .attr('dy', '-.35em');
-    tooltip.append('line')
-      .attr('stroke', 'black')
-      .attr('stroke-width', '2px')
-      .attr('stroke-dasharray', '2 2');
+    this.tooltip = createToolTip(this.svg);
     // </editor-fold>
-
-    // <editor-fold desc="Draw Line Series">
-    main = svg
-      .append('g')
-      .attr('class', 'main');
+    this.main = this.svg.append("g").attr("class", "main");
+    // <editor-fold desc="Draw Missed Data">
+    this.svg.append('g')
+      .attr('class', 'missed');
     // </editor-fold>
-    // <editor-fold desc="Update Data">
-    updateData = function (newData) {
-      let {yDomain, xAccessor, yAccessor, range, colors, height, margin, width, xTicks, yTicks } = props;
-      range = findRange(newData, xAccessor, xTicks, range);
-      yAccessor = yAccessor.constructor === Array? yAccessor : [yAccessor];
-      yDomain = findYExtent(newData, yAccessor, yTicks);
-      const t = d3
-        .transition('hello')
-        .duration(1000)
-        .on('start', function() {
-          // this problem doesn't seem to occur any more.
-          svg
-            .selectAll('circle.dot')
-            .attr('pointer-events', 'none');
-        })
-        .on('end', function() {
-          svg
-            .selectAll('circle.dot')
-            .attr('pointer-events', null);
-        });
-      d3.select(svg.node().parentNode)
-        // .transition(t)
-        .attr('height', height + margin.top + margin.bottom)
-        .attr('width', width + margin.left + margin.right);
+    this.updateChart({
+      height                  : this.height,
+      width                   : this.width,
+      colors                  : this.colors,
+      data                    : this.data,
+      margin                  : this.margin,
+      yDomain                 : this.yDomain,
+      xAccessor               : this.xAccessor,
+      yAccessor               : this.yAccessor,
+      range                   : this.range,
+      xTicks                  : this.xTicks,
+      yTicks                  : this.yTicks,
+      isYFrom0                : this.isYFrom0,
+      xAxisFormator           : this.xAxisFormator,
+      legendText              : this.legendText,
+      threshold               : this.threshold,
+      missed                  : this.missed,
+      baseline                : this.baseline,
+      lineStyle               : this.lineStyle,
+      tooltipTextBg           : this.tooltipTextBg,
+      tooltipDateFormator     : this.tooltipDateFormator,
+      tooltipReadingFormat    : this.tooltipReadingFormat,
+      tooltipReadingTexFill   : this.tooltipReadingTexFill
+    });
+  };
+  updateChart = newProps => {
+    this.setProps(newProps);
+    // <editor-fold desc="Define">
+    let {
+      height,
+      width,
+      colors,
+      data,
+      margin,
+      yDomain,
+      xAccessor,
+      yAccessor,
+      range,
+      xTicks,
+      yTicks,
+      x,
+      y,
+      xAxis,
+      yAxis,
+      svg,
+      line,
+      main,
+      tooltip,
+      setProps,
+      isYFrom0,
+      xAxisFormator,
+      legendText,
+      threshold,
+      missed,
+      baseline,
+      lineStyle,
+      tooltipTextBg,
+      tooltipDateFormator,
+      tooltipReadingFormat,
+      tooltipReadingTexFill
+    } = this;
+    // </editor-fold>
+    width = width - margin.left - margin.right;
+    yDomain = findYExtent(
+      data,
+      yDomain,
+      yAccessor,
+      yTicks,
+      isYFrom0,
+      threshold,
+      baseline? baseline.value : null
+    );
+    x = d3.scaleTime().range([0, width]);
+    y = d3.scaleLinear().domain(yDomain).range([height, 0]);
+    xAxis = d3.axisBottom(x).tickPadding(9);
+    yAxis = d3.axisLeft(y).tickPadding(9);
+    if (xAxisFormator) {
+      xAxis.tickFormat(d3.timeFormat(xAxisFormator));
+    }
+    range = findRange(data, missed, xAccessor, xTicks, range);
+    data = data.filter(
+      d => d[xAccessor] >= range[0] && d[xAccessor] <= range[1]
+    );
+    if (missed) {
+      missed = missed.filter(
+        d => d[xAccessor] >= range[0] && d[xAccessor] <= range[1]
+      );
+    }
+    yAccessor = yAccessor.constructor === Array ? yAccessor : [yAccessor];
 
+    d3
+      .select(svg.node().parentNode)
+      .attr("height", height + margin.top + margin.bottom)
+      .attr("width", width + margin.left + margin.right);
+    svg
+      .attr('transform', `translate(${margin.left}, ${margin.top})`);
 
-      if (xTicks.length > 0) {
-        x.domain(range).range([0, props.width]);
-        xAxis.tickValues(xTicks.filter(t => t >= range[0] && t <= range[1]));
-      } else {
-        x.domain(range).range([0, props.width]).nice();
-      }
-      if (yTicks.length > 0) {
-        y.domain(yDomain).range([height, 0]);
-        yAxis.tickValues(yTicks);
-      } else {
-        y.domain(yDomain).range([height, 0]).nice();
-      }
-      svg.select('.axis.axis--x')
-        // .transition(t)
-        .attr('transform', `translate(0, ${props.height})`)
-        .call(xAxis.tickSize(-height));
-      svg.select('.axis.axis--y')
-        // .transition(t)
-        .call(yAxis.tickSize(-width));
+    if (xTicks.length > 0) {
+      x.domain(range).range([0, width]);
+      xAxis.tickValues(xTicks.filter(t => t >= range[0] && t <= range[1]));
+    } else {
+      x.domain(range).range([0, width]);
+    }
+    if (yTicks.length > 0) {
+      y.domain(yDomain).range([height, 0]);
+      yAxis.tickValues(yTicks);
+    } else {
+      y.domain(yDomain).range([height, 0]).nice();
+    }
+    svg
+      .select(".axis.axis--x")
+      // .transition(t)
+      .attr("transform", `translate(0, ${height})`)
+      .call(xAxis.tickSize(-height));
+    svg
+      .select(".axis.axis--y")
+      // .transition(t)
+      .call(yAxis.tickSize(-width));
 
-      // <editor-fold desc="draw tooltip">
-      function setTooltip(d) {
-        const t1 = JSON.stringify(d);
-        const t2 = `${d3.timeFormat('%I:%M %p, %-d/%b')(d[xAccessor])}`
-        tooltip.select('text.indicator').text(t1)
-        tooltip.select('text.time').text(t2)
-        const t1Length = tooltip.select('text.indicator').node().getComputedTextLength();
-        const t2Length = tooltip.select('text.time').node().getComputedTextLength();
-        tooltip.select('text.indicator').style('fill', () => (d.datum && d.datum.taskStatus === 'MISSED')? '#363b4e': 'white')
-        tooltip.select('rect').attr('width', t1Length + 3 * 2)
-          .style('fill', () => 'red');
-        tooltip.select('text.time').attr('x', t1Length + 3 * 4);
-        const l1 = (t1Length + t2Length - 10 + 3*3)/2
-        tooltip.select('path').attr('d', drawPath(3, 16, l1, l1, 5, 10));
-        tooltip.select('line')
-          .attr('x1', l1 + 5 + 3)
-          .attr('x2', l1 + 5 + 3)
-          .attr('y1', height + 3 + 10)
-          .attr('y2', 3 + 10);
+    // <editor-fold desc="Remove cluttered axis labels"
+    const labelTexts = svg
+      .select('.axis--x')
+      .selectAll('.tick text');
+    const totalWidth = labelTexts.nodes()
+      .reduce((acc, node) => acc + node.getBBox().width, 0);
 
+    if (totalWidth > width) {
+      labelTexts
+        .filter((dom, i) => (i!== 0) && (i%7 !== 0))
+        .attr('display', 'none');
+    } else {
+      labelTexts.attr('display', null);
+    }
+    // </editor-fold>
+    // <editor-fold desc="draw threshold blocks">
+    drawThreshold(svg, threshold, colors, y, yAccessor, width);
+    // </editor-fold>
+    // <editor-fold desc="draw baseline">
+    drawBaseline(svg, baseline, y, width);
+    // </editor-fold>
+    // <editor-fold desc="draw line series">
+    const mainGroups = main.selectAll("g.line-dots").data(yAccessor);
 
-        tooltip.transition().duration(100)
-          .attr('transform', `translate(${x(d[xAccessor]) - (l1 + 5 + 3)}, ${-3 - 10})`);
+    // UPDATE
+    // ENTER + UPDATE
+    const allGroups = mainGroups
+      .enter()
+      .append("g")
+      .merge(mainGroups)
+      .attr("class", d => formatClassName(d) + " line-dots");
+    // EXIT
+    mainGroups.exit().remove();
 
-      };
-      function drawPath(r, h, l1, l2, x, y) {
-        const arc = `a${r}, ${r} 0 0, 0`;
-        return `M0, 0
-          ${arc} ${r}, ${r} l${l1}, 0 l${x}, ${y} l${x}, -${y}
-          l${l2} 0
-          ${arc} ${r} -${r}
-          l0 -${h}
-          ${arc} -${r} -${r}
-          l-${l1 + l2 + x + x}, 0
-          ${arc} -${r} ${r}
-          z`;
-      }
-      // </editor-fold>
-      // <editor-fold desc="draw line series">
-      const mainGroups = main
-        .selectAll('g.line-dots')
-        .data(yAccessor);
+    const lineDots = allGroups.selectAll("g").data(["line", "dots"]);
 
-      // UPDATE
-      // ENTER + UPDATE
-      const allGroups = mainGroups
-        .enter().append('g')
-        .merge(mainGroups)
-        .attr('class', d => d + ' line-dots')
-      // EXIT
-      mainGroups.exit().remove();
+    const allLineDots = lineDots
+      .enter()
+      .append("g")
+      .merge(lineDots)
+      .attr("class", d => d);
 
-      const lineDots = allGroups
-        .selectAll('g')
-        .data(['line', 'dots']);
+    lineDots.exit().remove();
 
-      const allLineDots = lineDots.enter().append('g')
-        .merge(lineDots)
-        .attr('class', d => d);
+    const a = allLineDots.filter(function() {
+      return d3.select(this).classed("line");
+    });
+    const lines = a.selectAll("path").data([data]);
 
-      lineDots.exit().remove();
-
-      const a = allLineDots.filter(function() { return d3.select(this).classed('line') });
-      const lines = a
-        .selectAll('path')
-        .data([newData]);
-
-      lines.enter().append('path')
-        .merge(lines)
-        .transition(t)
-        .attr('d', function(d, i) {
-          const group = d3.select(this.parentNode.parentNode).datum()
-          return line.x(s => x(s[xAccessor])).y(s => y(s[group]))(newData)
-        })
-        .attr('stroke', function (d, i) {
-          const group = d3.select(this.parentNode.parentNode).datum()
-          return colors[yAccessor.indexOf(group)]
-        })
-        .attr('stroke-width', '2px')
-        .attr('fill', 'none');
-
-
-      const b = allLineDots.filter(function() { return d3.select(this).classed('dots')});
-      const dots = b
-        .selectAll('circle')
-        .data(newData);
-
-      newData.forEach(function(d, i) { d.nodes = []; });
-      dots.enter().append('circle')
-        .merge(dots)
-        .attr('class', 'dot')
-        .each(function(d) {
-          d.nodes.push(this);
-        })
-        .transition(t)
-        .attr('r', 3)
-        .attr('cx', (d, i) => x(d[xAccessor]))
-        .attr('cy', function(d) {
+    lines
+      .enter()
+      .append("path")
+      .merge(lines)
+      .each(function(d) {
+        removeAllAttrs(this);
+      })
+      .call(attr, {
+        ...DEFAULT_LINE_SERIES_STYLE,
+        "d": function(d, i) {
           const group = d3.select(this.parentNode.parentNode).datum();
-          return y(d[group]);
-        })
-        .attr('fill', 'white')
-        .attr('stroke', function(d) {
+          return line.x(s => x(s[xAccessor])).y(s => y(s[group]))(data);
+        },
+        stroke: function(d, i) {
           const group = d3.select(this.parentNode.parentNode).datum();
           return colors[yAccessor.indexOf(group)];
-        })
-        .attr('stroke-width', '2px');
+        }
+      })
+      .each(function (d, i) {
+        const idx = yAccessor.indexOf(d3.select(this.parentNode.parentNode).datum());
+        d3.select(this).call(attr, lineStyle[idx] || {})
+      });
 
-      dots.exit().remove();
-      svg
-        .selectAll('circle.dot')
-        .on('mouseover', function(d){
-          tooltip.attr('display', null);
-          const { nodes, ...rest } = d;
-          setTooltip(rest);
-          d3.select(this.parentNode.parentNode).raise();
-          d3.selectAll(d.nodes)
-            .raise()
-            .transition()
-            .attr('r', 6);
-        })
-        .on('mouseout', function(d) {
-          tooltip.attr('display', 'none');
-          d3.selectAll(d.nodes)
-            .transition()
-            .attr('r', 3);
-        })
-      // </editor-fold >
-    }
+
+    const b = allLineDots.filter(function() {
+      return d3.select(this).classed("dots");
+    });
+    const dots = b.selectAll("circle").data(data);
+
+    data.forEach(function(d, i) {
+      d.nodes = [];
+    });
+    dots
+      .enter()
+      .append("circle")
+      .merge(dots)
+      .each(function(d) {
+        d.nodes.push(this);
+      })
+      .call(attr, {
+        ...DEFAULT_CIRCLE_STYLE,
+        "class": 'dot',
+        "r": 3,
+        "cx": (d) => x(d[xAccessor]),
+        "cy": function(d) {
+          const group = d3.select(this.parentNode.parentNode).datum();
+          return y(d[group]);
+        },
+        'stroke': function(d) {
+          const group = d3.select(this.parentNode.parentNode).datum();
+          return colors[yAccessor.indexOf(group)];
+        }
+      });
+
+    dots.exit().remove();
+    // </editor-fold >
+
+    // <editor-fold desc="Draw missed Data Points ">
+    const missedData = svg.select('g.missed')
+      .selectAll('path')
+      .data(missed || []);
+    // ENTER AND UPDATE
+    missedData.enter()
+      .append('path')
+      .merge(missedData)
+      .attr('d', d3.symbol().type(d3.symbolTriangle).size(30))
+      .call(attr, DEFAULT_LINE_MISSED_STYLE)
+      .attr('transform', d => `translate(${x(d[xAccessor])}, ${height})`);
     // </editor-fold>
-    updateData(props.data);
+    missedData.exit().remove();
 
-  }
-  return drawChart;
-}
+    svg
+      .selectAll("circle.dot")
+      .on("mouseover", function(d) {
+        tooltip.attr("display", null);
+        const { nodes, ...rest } = d;
+        setTooltip(rest, tooltip, x, xAccessor, height, tooltipTextBg,
+          tooltipDateFormator,
+          tooltipReadingFormat,
+          tooltipReadingTexFill);
+        d3.select(this.parentNode.parentNode).raise();
+        d3.selectAll(d.nodes).raise().transition().attr("r", 6);
+      })
+      .on("mouseout", function(d) {
+        tooltip.attr("display", "none");
+        d3.selectAll(d.nodes).transition().attr("r", 3);
+      });
 
-function findRange(data, xAccessor, xTicks, range, minExtent = DEFAULT_MIN_EXTENT) {
-  if (range && range.length > 0) {
-    return range;
-  }
-  if (data.length === 0) {
-    const now = +new Date();
-    return [now, now + DEFAULT_MIN_EXTENT];
-  }
-  const newDates = data.map(d => d[xAccessor]).concat(xTicks || []);
-  const extent = d3.extent(newDates);
-  if (extent[0] === extent[1]) {
-    return [extent[0], extent[0] + minExtent];
-  }
-  return extent;
-}
-function findYExtent(data, yAccessor, yTicks, defaultDomain = DEFAULT_Y_DOMAIN.slice()) {
-  if (data.length === 0) return defaultDomain;
-
-  yAccessor = yAccessor.constructor === Array? yAccessor : [yAccessor];
-  let yDomain = yAccessor.reduce((acc, key) => {
-    const extent = d3.extent(data, d => d[key]);
-    return [Math.min(acc[0], extent[0]), Math.max(acc[1], extent[1])];
-  }, [Infinity, -Infinity]);
-
-  yDomain = d3.extent(yDomain.concat(yTicks));
-  if (yDomain[0] === yDomain[1]) {
-    return [yDomain[0] - 1, yDomain[1] + 1];
-  }
-  return yDomain;
-}
-
-function findYDomainFrom0(data, yAccessor, defaultDomain = DEFAULT_Y_DOMAIN.slice()) {
-  if (data.length === 0) return defaultDomain;
-  yAccessor = yAccessor.constructor === Array? yAccessor : [yAccessor];
-  const yMax = yAccessor.reduce((acc, key) => {
-    const max = d3.max(data, d => d[key]);
-    return [0, Math.max(acc, max)];
-  }, 0);
-  if (yMax === 0) return defaultDomain;
-  return [0, yMax];
+    svg
+      .select('g.missed')
+      .selectAll('path')
+      .on('mouseover', function(d) {
+        tooltip.attr('display', null);
+        setTooltip(d, tooltip, x, xAccessor, height, tooltipTextBg,
+          tooltipDateFormator,
+          tooltipReadingFormat,
+          tooltipReadingTexFill);
+        d3.select(this)
+          .raise()
+          .transition()
+          .attr('d', d3.symbol().type(d3.symbolTriangle).size(100));
+      })
+      .on('mouseout', function(d) {
+        tooltip.attr('display', 'none');
+        d3.select(this)
+          .transition()
+          .attr('d', d3.symbol().type(d3.symbolTriangle).size(30));
+      });
+    // <editor-fold desc="Draw Legend">
+    let legendsData = yAccessor.map((d, i) => ({
+      text         : legendText[i],
+      key          : d,
+      path         : d3.symbol().type(d3.symbolCircle).size(40),
+      textStyle    : DEFAULT_LINE_LEGEND_TEXT_STYLE,
+      pathStyle    : {...DEFAULT_LINE_LEGEND_PATH_STYLE, stroke: colors[i]}
+    }));
+    if (this.missed) {
+      legendsData = legendsData.concat({
+        text         : 'Missed Reading',
+        key          : 'missed',
+        path         : d3.symbol().type(d3.symbolTriangle).size(30),
+        textStyle    : DEFAULT_LINE_LEGEND_TEXT_STYLE,
+        pathStyle    : {...DEFAULT_LINE_MISSED_STYLE}
+      })
+    }
+    if (this.baseline) {
+      legendsData = legendsData.concat({
+        text         : baseline.legendText || 'Baseline',
+        key          : 'baseline',
+        path         : 'M0, 0 L25,0',
+        textStyle    : DEFAULT_LINE_LEGEND_TEXT_STYLE,
+        pathStyle    : {
+          ...DEFAULT_BASELINE_STYLE,
+          ...baseline.lineStyle || {}
+        }
+      });
+    }
+    svg.call(drawLegend, legendsData, height, width);
+    // </editor-fold>
+  };
 }

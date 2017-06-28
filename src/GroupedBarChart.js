@@ -1,29 +1,27 @@
 import React, { Component } from 'react';
 import * as d3 from 'd3';
-import { drawNewLine } from './charts/LineChart';
+import { drawGroupedBar } from './charts/GroupedBarChart';
 import './charts/css/lineChart.css'
 
-class LineChart extends Component {
+class GroupedBarChart extends Component {
   componentDidMount() {
-    const width = this._container.offsetWidth;
-    this.lineChart = new drawNewLine({...this.props, width});
-    d3.select(this._container)
-      .call(this.lineChart.drawLine);
-    this.functionRef = debounce(() =>
-      this.lineChart.updateChart({
-        ...this.props,
-        width: this._container.offsetWidth
-      }),
-      200
-    );
-    window.addEventListener('resize', this.functionRef);
+    this.redrawChart();
   }
   componentDidUpdate() {
-    const width = this._container.offsetWidth;
-    this.lineChart.updateChart({...this.props, width});
+    this.redrawChart();
   }
   componentWillUnmount() {
     window.removeEventListener('resize', this.functionRef);
+  }
+  redrawChart = () => {
+    d3.select(this._container).selectAll('*').remove();
+    window.removeEventListener('resize', this.functionRef);
+    const width = this._container.offsetWidth;
+    this.groupedBarChart = new drawGroupedBar({...this.props, width});
+    d3.select(this._container)
+      .call(this.groupedBarChart.drawChart);
+    this.functionRef = debounce(this.redrawChart, 200);
+    window.addEventListener('resize', this.functionRef);
   }
   render() {
     return (
@@ -33,7 +31,7 @@ class LineChart extends Component {
       </div>);
   }
 }
-export default LineChart;
+export default GroupedBarChart;
 
 function debounce(func, wait, immediate) {
   var timeout;
