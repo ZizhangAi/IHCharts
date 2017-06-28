@@ -177,6 +177,7 @@ function drawECG () {
     if (legend) {
       const legends = [{
         text         : legend,
+        key          : legend,
         path         : d3.symbol().type(d3.symbolTriangle).size(50),
         textStyle    : DEFAULT_ECG_CORNER_TEXT_ATTR,
         pathStyle    : DEFAULT_ECG_MRKER_ATTR
