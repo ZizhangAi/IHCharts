@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom';
 import ECGChart from './ECGChart';
 import LineChart from './LineChart';
 import GroupedBarChart from './GroupedBarChart';
-import App from "./App";
+// import App from "./App";
 
 // ReactDOM.render(
 //   <ECGChart
